@@ -1,0 +1,11 @@
+data_factory_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DataFactory/factories/<factory>"
+http_linked_service_name_prefix = "ls-http-airline"
+http_base_url = "https://raw.githubusercontent.com"
+http_authentication_type = "Anonymous"
+http_enable_certificate_validation = true
+
+adls_linked_service_name_prefix = "ls-adls-airline"
+storage_dfs_endpoint = "https://stairline<random>.dfs.core.windows.net"
+storage_account_key = "<set-me>"
+
+description = "Linked services for HTTP source and ADLS Gen2 sink"

@@ -1,0 +1,8 @@
+﻿resource_group_name = "rg-airline-<random>"
+location = "eastus2"
+storage_account_name_prefix = "stairline"
+account_tier = "Standard"
+account_replication_type = "LRS"
+is_hns_enabled = true
+public_network_access_enabled = true
+# storage_blob_contributor_object_id = "00000000-0000-0000-0000-000000000000"

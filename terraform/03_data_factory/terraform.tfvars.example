@@ -1,0 +1,3 @@
+﻿resource_group_name = "rg-airline-<random>"
+location = "eastus2"
+data_factory_name_prefix = "adf-airline"

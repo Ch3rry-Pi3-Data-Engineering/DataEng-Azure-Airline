@@ -1,0 +1,3 @@
+﻿resource_group_name = null
+resource_group_name_prefix = "rg-airline"
+location = "eastus2"
