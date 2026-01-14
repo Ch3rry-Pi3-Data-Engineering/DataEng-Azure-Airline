@@ -43,11 +43,11 @@ Set `resource_group_name` in `terraform/01_resource_group/terraform.tfvars` (or 
 - `terraform/02_storage_account`: ADLS Gen2 storage account + medallion containers
 - `terraform/03_data_factory`: Azure Data Factory v2
 - `terraform/04_adf_linked_services`: ADF linked services (HTTP via azapi + ADLS Gen2)
-- `terraform/05_adf_pipeline_http`: ADF pipeline + datasets (lookup -> foreach -> copy)
+- `terraform/05_adf_pipeline_http`: ADF pipeline + datasets (foreach -> copy with translator parameters)
 - `scripts/`: Deploy/destroy helpers (auto-writes terraform.tfvars)
 - `guides/setup.md`: Detailed setup guide
 - `data/`: Local data assets
-- `parameters/`: Pipeline parameters JSON
+- `parameters/`: Reference JSON for pipeline parameter defaults
 
 Example variables files:
 - `terraform/01_resource_group/terraform.tfvars.example`
@@ -55,6 +55,11 @@ Example variables files:
 - `terraform/03_data_factory/terraform.tfvars.example`
 - `terraform/04_adf_linked_services/terraform.tfvars.example`
 - `terraform/05_adf_pipeline_http/terraform.tfvars.example`
+
+## ADF Pipeline Mapping
+The pipeline uses translator objects as pipeline parameters (`p_translator_airline`, `p_translator_flight`, `p_translator_passenger`).
+The Copy activity chooses the translator per file inside the ForEach, so the mapping is dynamic.
+ADF Studio may not render these mappings in the grid; check the Copy activity JSON if you need to verify.
 
 ## Deploy/Destroy Options
 Deploy:

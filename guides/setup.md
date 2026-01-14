@@ -48,11 +48,11 @@ After installing, re-open PowerShell and re-run terraform version.
 - `terraform/02_storage_account`: ADLS Gen2 storage account + medallion containers
 - `terraform/03_data_factory`: Azure Data Factory v2
 - `terraform/04_adf_linked_services`: ADF linked services (HTTP via azapi + ADLS Gen2)
-- `terraform/05_adf_pipeline_http`: ADF pipeline + datasets (lookup -> foreach -> copy)
+- `terraform/05_adf_pipeline_http`: ADF pipeline + datasets (foreach -> copy with translator parameters)
 - `scripts/`: Helper scripts to deploy/destroy Terraform resources
 - `guides/setup.md`: This guide
 - `data/`: Local data assets
-- `parameters/`: Pipeline parameters JSON
+- `parameters/`: Reference JSON for pipeline parameter defaults
 
 ## Configure Terraform
 The deploy script writes `terraform/01_resource_group/terraform.tfvars`,
@@ -77,6 +77,8 @@ From the repo root or scripts folder, run:
 ```powershell
 python scripts\deploy.py
 ```
+
+The deploy script applies the pipeline in two steps (target the pipeline resource, then full apply) to avoid ADF update ordering issues.
 
 Optional flags:
 
@@ -110,8 +112,10 @@ python scripts\destroy.py --adf-pipeline-only
 - Storage defaults to Standard performance, LRS, ADLS Gen2 (HNS enabled), and public network access.
 - Containers created by default: bronze, silver, gold.
 - Linked services include an HTTP source (via azapi) and ADLS Gen2 sink (account key).
-- The `parameters/parameters.json` file is uploaded to `bronze/parameters/parameters.json` if present.
-- The ADF pipeline reads the parameters JSON, then copies each HTTP CSV into `bronze/airport/<file>`.
+- The ADF pipeline stores the file list plus translator objects as pipeline parameters (`p_translator_*`).
+- The Copy activity selects the translator per file inside the ForEach, so mappings are dynamic.
+- ADF Studio may show an empty Mapping grid; verify mappings in the Copy activity JSON instead.
+- The pipeline copies each HTTP CSV into `bronze/airport/<file>` using the per-file translator.
 - Data Factory is provisioned as v2 with a random pet suffix by default.
 - Terraform state and tfvars files are gitignored by default.
 - The random suffix keeps resource names unique per deployment.

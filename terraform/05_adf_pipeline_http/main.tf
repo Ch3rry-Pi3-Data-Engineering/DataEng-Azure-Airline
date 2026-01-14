@@ -33,28 +33,21 @@ resource "random_pet" "http_dataset" {
   separator = "_"
 }
 
-resource "random_pet" "params_dataset" {
-  length    = 2
-  separator = "_"
-}
-
 resource "random_pet" "sink_dataset" {
   length    = 2
   separator = "_"
 }
 
 locals {
-  http_dataset_prefix   = replace(var.http_dataset_name_prefix, "-", "_")
-  params_dataset_prefix = replace(var.parameters_dataset_name_prefix, "-", "_")
-  sink_dataset_prefix   = replace(var.sink_dataset_name_prefix, "-", "_")
+  http_dataset_prefix = replace(var.http_dataset_name_prefix, "-", "_")
+  sink_dataset_prefix = replace(var.sink_dataset_name_prefix, "-", "_")
 
-  pipeline_name        = var.pipeline_name != null ? var.pipeline_name : "${var.pipeline_name_prefix}-${random_pet.pipeline.id}"
-  http_dataset_name    = var.http_dataset_name != null ? var.http_dataset_name : "${local.http_dataset_prefix}_${random_pet.http_dataset.id}"
-  params_dataset_name  = var.parameters_dataset_name != null ? var.parameters_dataset_name : "${local.params_dataset_prefix}_${random_pet.params_dataset.id}"
-  sink_dataset_name    = var.sink_dataset_name != null ? var.sink_dataset_name : "${local.sink_dataset_prefix}_${random_pet.sink_dataset.id}"
-  lookup_activity_name = "lookup_parameters"
+  pipeline_name     = var.pipeline_name != null ? var.pipeline_name : "${var.pipeline_name_prefix}-${random_pet.pipeline.id}"
+  http_dataset_name = var.http_dataset_name != null ? var.http_dataset_name : "${local.http_dataset_prefix}_${random_pet.http_dataset.id}"
+  sink_dataset_name = var.sink_dataset_name != null ? var.sink_dataset_name : "${local.sink_dataset_prefix}_${random_pet.sink_dataset.id}"
+
   foreach_activity_name = "for_each_file"
-  copy_activity_name   = "copy_http_to_adls"
+  copy_activity_name    = "copy_http_to_adls"
 
   http_dataset_params = {
     p_rel_url = "@item().p_rel_url"
@@ -65,35 +58,125 @@ locals {
     p_sink_file   = "@item().p_sink_file"
   }
 
-  pipeline_activities = [
+  # -----------------------------
+  # ForEach items (files to ingest)
+  # -----------------------------
+  pipeline_files_default = [
     {
-      name = local.lookup_activity_name
-      type = "Lookup"
-      typeProperties = {
-        source = {
-          type = "JsonSource"
-        }
-        dataset = {
-          referenceName = azurerm_data_factory_dataset_json.parameters.name
-          type          = "DatasetReference"
-        }
-        firstRowOnly = false
-      }
+      p_source_file = "DimAirline.csv"
+      p_rel_url     = "Ch3rry-Pi3-Data-Engineering/DataEng-Azure-Airline/refs/heads/main/data/DimAirline.csv"
+      p_sink_folder = "airport"
+      p_sink_file   = "airline.csv"
     },
+    {
+      p_source_file = "DimFlight.csv"
+      p_rel_url     = "Ch3rry-Pi3-Data-Engineering/DataEng-Azure-Airline/refs/heads/main/data/DimFlight.csv"
+      p_sink_folder = "airport"
+      p_sink_file   = "flight.csv"
+    },
+    {
+      p_source_file = "DimPassenger.csv"
+      p_rel_url     = "Ch3rry-Pi3-Data-Engineering/DataEng-Azure-Airline/refs/heads/main/data/DimPassenger.csv"
+      p_sink_folder = "airport"
+      p_sink_file   = "passenger.csv"
+    }
+  ]
+
+  # -----------------------------
+  # Column mappings (arrays)
+  # -----------------------------
+  mapping_airline = [
+    {
+      source = { name = "airline_id", type = "Int64" }
+      sink   = { name = "airline_id", type = "Int64" }
+    },
+    {
+      source = { name = "airline_name", type = "String" }
+      sink   = { name = "airline_name", type = "String" }
+    },
+    {
+      source = { name = "country", type = "String" }
+      sink   = { name = "country", type = "String" }
+    }
+  ]
+
+  mapping_flight = [
+    {
+      source = { name = "flight_id", type = "Int64" }
+      sink   = { name = "flight_id", type = "Int64" }
+    },
+    {
+      source = { name = "flight_number", type = "String" }
+      sink   = { name = "flight_number", type = "String" }
+    },
+    {
+      source = { name = "departure_time", type = "String" }
+      sink   = { name = "departure_time", type = "String" }
+    },
+    {
+      source = { name = "arrival_time", type = "String" }
+      sink   = { name = "arrival_time", type = "String" }
+    }
+  ]
+
+  mapping_passenger = [
+    {
+      source = { name = "passenger_id", type = "Int64" }
+      sink   = { name = "passenger_id", type = "Int64" }
+    },
+    {
+      source = { name = "full_name", type = "String" }
+      sink   = { name = "full_name", type = "String" }
+    },
+    {
+      source = { name = "gender", type = "String" }
+      sink   = { name = "gender", type = "String" }
+    },
+    {
+      source = { name = "age", type = "Int64" }
+      sink   = { name = "age", type = "Int64" }
+    },
+    {
+      source = { name = "country", type = "String" }
+      sink   = { name = "country", type = "String" }
+    }
+  ]
+
+  # -----------------------------
+  # Translators (Objects)
+  # ADF tends to keep these when the entire 'translator' is expression-driven,
+  # while it may drop nested expression objects under 'mappings'.
+  # -----------------------------
+  translator_airline = {
+    type     = "TabularTranslator"
+    mappings = local.mapping_airline
+  }
+
+  translator_flight = {
+    type     = "TabularTranslator"
+    mappings = local.mapping_flight
+  }
+
+  translator_passenger = {
+    type     = "TabularTranslator"
+    mappings = local.mapping_passenger
+  }
+
+  # Choose translator object based on the current ForEach item
+  translator_expression = "@if(equals(item().p_source_file,'DimPassenger.csv'), pipeline().parameters.p_translator_passenger, if(equals(item().p_source_file,'DimAirline.csv'), pipeline().parameters.p_translator_airline, pipeline().parameters.p_translator_flight))"
+
+  # -----------------------------
+  # Pipeline activities
+  # -----------------------------
+  pipeline_activities = [
     {
       name = local.foreach_activity_name
       type = "ForEach"
-      dependsOn = [
-        {
-          activity             = local.lookup_activity_name
-          dependencyConditions = ["Succeeded"]
-        }
-      ]
       typeProperties = {
         isSequential = true
         items = {
           type  = "Expression"
-          value = "@activity('lookup_parameters').output.value"
+          value = "@pipeline().parameters.files"
         }
         activities = [
           {
@@ -120,12 +203,10 @@ locals {
               sink = {
                 type = "DelimitedTextSink"
               }
+              # IMPORTANT: translator itself is expression-driven and returns an Object
               translator = {
-                type = "TabularTranslator"
-                mappings = {
-                  type  = "Expression"
-                  value = "@item().p_mapping"
-                }
+                type  = "Expression"
+                value = local.translator_expression
               }
             }
           }
@@ -134,9 +215,32 @@ locals {
     }
   ]
 
+  # -----------------------------
+  # Pipeline body
+  # -----------------------------
   pipeline_body = {
     properties = {
-      activities  = local.pipeline_activities
+      activities = local.pipeline_activities
+      parameters = {
+        files = {
+          type         = "Array"
+          defaultValue = local.pipeline_files_default
+        }
+
+        # Translator params (Object) instead of mapping arrays
+        p_translator_airline = {
+          type         = "Object"
+          defaultValue = local.translator_airline
+        }
+        p_translator_flight = {
+          type         = "Object"
+          defaultValue = local.translator_flight
+        }
+        p_translator_passenger = {
+          type         = "Object"
+          defaultValue = local.translator_passenger
+        }
+      }
       annotations = []
     }
   }
@@ -176,19 +280,6 @@ resource "azapi_resource" "http_dataset" {
   })
 }
 
-resource "azurerm_data_factory_dataset_json" "parameters" {
-  name                = local.params_dataset_name
-  data_factory_id     = var.data_factory_id
-  linked_service_name = var.adls_linked_service_name
-  encoding            = "UTF-8"
-
-  azure_blob_storage_location {
-    container = var.parameters_container
-    path      = var.parameters_path
-    filename  = var.parameters_file
-  }
-}
-
 resource "azurerm_data_factory_dataset_delimited_text" "adls_sink" {
   name                = local.sink_dataset_name
   data_factory_id     = var.data_factory_id
@@ -222,7 +313,6 @@ resource "azapi_resource" "pipeline" {
 
   depends_on = [
     azapi_resource.http_dataset,
-    azurerm_data_factory_dataset_json.parameters,
     azurerm_data_factory_dataset_delimited_text.adls_sink,
   ]
 }

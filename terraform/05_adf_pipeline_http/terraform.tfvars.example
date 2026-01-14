@@ -4,10 +4,5 @@ adls_linked_service_name = "ls-adls-airline-<random>"
 
 pipeline_name_prefix = "pl-airline-http"
 http_dataset_name_prefix = "ds_http_airline"
-parameters_dataset_name_prefix = "ds_parameters_airline"
 sink_dataset_name_prefix = "ds_adls_bronze_airline"
-
-parameters_container = "bronze"
-parameters_path = "parameters"
-parameters_file = "parameters.json"
 sink_file_system = "bronze"

@@ -1,4 +1,5 @@
-﻿import argparse
+import argparse
+import json
 import os
 import subprocess
 import sys
@@ -20,11 +21,7 @@ DEFAULTS = {
     "linked_services_description": "Linked services for HTTP source and ADLS Gen2 sink",
     "pipeline_name_prefix": "pl-airline-http",
     "http_dataset_name_prefix": "ds_http_airline",
-    "parameters_dataset_name_prefix": "ds_parameters_airline",
     "sink_dataset_name_prefix": "ds_adls_bronze_airline",
-    "parameters_container": "bronze",
-    "parameters_path": "parameters",
-    "parameters_file": "parameters.json",
     "sink_file_system": "bronze",
 }
 
@@ -100,16 +97,80 @@ def load_env_file(path):
             os.environ[key] = value
 
 
-def get_output_optional(tf_dir, output_name):
-    try:
-        return run_capture(["terraform", f"-chdir={tf_dir}", "-no-color", "output", "-raw", output_name])
-    except subprocess.CalledProcessError:
+def read_tfvars_value(path, key):
+    if not path.exists():
         return None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, value = stripped.split("=", 1)
+        if name.strip() != key:
+            continue
+        value = value.strip()
+        if value.startswith("\"") and value.endswith("\""):
+            return value[1:-1].replace("\\\"", "\"")
+        return value
+    return None
+
+
+def get_output_optional(tf_dir, output_name):
+    output = run_capture_optional(["terraform", f"-chdir={tf_dir}", "-no-color", "output", "-raw", output_name])
+    if output:
+        return output
+    return get_output_from_state(tf_dir, output_name)
+
+
+def get_tfstate_path(tf_dir):
+    workspace = run_capture_optional(["terraform", f"-chdir={tf_dir}", "workspace", "show"])
+    if workspace and workspace != "default":
+        workspace_state = tf_dir / "terraform.tfstate.d" / workspace / "terraform.tfstate"
+        if workspace_state.exists():
+            return workspace_state
+    default_state = tf_dir / "terraform.tfstate"
+    if default_state.exists():
+        return default_state
+    return None
+
+
+def get_output_from_state(tf_dir, output_name):
+    state_path = get_tfstate_path(tf_dir)
+    if not state_path or not state_path.exists():
+        return None
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    outputs = state.get("outputs", {})
+    if output_name not in outputs:
+        return None
+    value = outputs[output_name].get("value")
+    if value is None or value == "null":
+        return None
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return str(value)
 
 
 def get_rg_name(rg_dir):
     run(["terraform", f"-chdir={rg_dir}", "init"])
     return get_output_optional(rg_dir, "resource_group_name")
+
+
+def resolve_rg_name(rg_dir, storage_dir, data_factory_dir):
+    rg_name = get_rg_name(rg_dir)
+    if rg_name:
+        return rg_name
+    rg_name = os.environ.get("RESOURCE_GROUP_NAME") or os.environ.get("RG_NAME")
+    if rg_name:
+        return rg_name
+    rg_name = read_tfvars_value(storage_dir / "terraform.tfvars", "resource_group_name")
+    if rg_name:
+        return rg_name
+    rg_name = read_tfvars_value(data_factory_dir / "terraform.tfvars", "resource_group_name")
+    if rg_name:
+        return rg_name
+    return None
 
 
 def write_storage_tfvars(storage_dir, rg_name):
@@ -176,11 +237,7 @@ def write_adf_pipeline_tfvars(pipeline_dir, data_factory_dir, linked_services_di
         ("adls_linked_service_name", adls_linked_service_name),
         ("pipeline_name_prefix", DEFAULTS["pipeline_name_prefix"]),
         ("http_dataset_name_prefix", DEFAULTS["http_dataset_name_prefix"]),
-        ("parameters_dataset_name_prefix", DEFAULTS["parameters_dataset_name_prefix"]),
         ("sink_dataset_name_prefix", DEFAULTS["sink_dataset_name_prefix"]),
-        ("parameters_container", DEFAULTS["parameters_container"]),
-        ("parameters_path", DEFAULTS["parameters_path"]),
-        ("parameters_file", DEFAULTS["parameters_file"]),
         ("sink_file_system", DEFAULTS["sink_file_system"]),
     ]
     write_tfvars(pipeline_dir / "terraform.tfvars", items)
@@ -213,7 +270,7 @@ if __name__ == "__main__":
         pipeline_dir = repo_root / "terraform" / "05_adf_pipeline_http"
 
         if args.storage_only:
-            rg_name = get_rg_name(rg_dir)
+            rg_name = resolve_rg_name(rg_dir, storage_dir, data_factory_dir)
             if not rg_name:
                 raise RuntimeError("Resource group name not found for storage destroy.")
             write_storage_tfvars(storage_dir, rg_name)
@@ -221,7 +278,7 @@ if __name__ == "__main__":
             sys.exit(0)
 
         if args.datafactory_only:
-            rg_name = get_rg_name(rg_dir)
+            rg_name = resolve_rg_name(rg_dir, storage_dir, data_factory_dir)
             if not rg_name:
                 raise RuntimeError("Resource group name not found for data factory destroy.")
             write_data_factory_tfvars(data_factory_dir, rg_name)
@@ -246,7 +303,7 @@ if __name__ == "__main__":
             destroy_stack(rg_dir)
             sys.exit(0)
 
-        rg_name = get_rg_name(rg_dir)
+        rg_name = resolve_rg_name(rg_dir, storage_dir, data_factory_dir)
         if not rg_name:
             raise RuntimeError("Resource group name not found for destroy.")
 

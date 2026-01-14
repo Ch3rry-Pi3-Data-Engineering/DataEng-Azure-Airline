@@ -21,11 +21,7 @@ DEFAULTS = {
     "linked_services_description": "Linked services for HTTP source and ADLS Gen2 sink",
     "pipeline_name_prefix": "pl-airline-http",
     "http_dataset_name_prefix": "ds_http_airline",
-    "parameters_dataset_name_prefix": "ds_parameters_airline",
     "sink_dataset_name_prefix": "ds_adls_bronze_airline",
-    "parameters_container": "bronze",
-    "parameters_path": "parameters",
-    "parameters_file": "parameters.json",
     "sink_file_system": "bronze",
 }
 
@@ -174,11 +170,7 @@ def write_adf_pipeline_tfvars(
         ("adls_linked_service_name", adls_linked_service_name),
         ("pipeline_name_prefix", DEFAULTS["pipeline_name_prefix"]),
         ("http_dataset_name_prefix", DEFAULTS["http_dataset_name_prefix"]),
-        ("parameters_dataset_name_prefix", DEFAULTS["parameters_dataset_name_prefix"]),
         ("sink_dataset_name_prefix", DEFAULTS["sink_dataset_name_prefix"]),
-        ("parameters_container", DEFAULTS["parameters_container"]),
-        ("parameters_path", DEFAULTS["parameters_path"]),
-        ("parameters_file", DEFAULTS["parameters_file"]),
         ("sink_file_system", DEFAULTS["sink_file_system"]),
     ]
     write_tfvars(pipeline_dir / "terraform.tfvars", items)
@@ -189,6 +181,14 @@ def deploy_stack(tf_dir):
         raise FileNotFoundError(f"Missing Terraform dir: {tf_dir}")
     run(["terraform", f"-chdir={tf_dir}", "init"])
     run(["terraform", f"-chdir={tf_dir}", "apply", "-auto-approve"])
+
+
+def deploy_pipeline_stack(pipeline_dir):
+    if not pipeline_dir.exists():
+        raise FileNotFoundError(f"Missing Terraform dir: {pipeline_dir}")
+    run(["terraform", f"-chdir={pipeline_dir}", "init"])
+    run(["terraform", f"-chdir={pipeline_dir}", "apply", "-target=azapi_resource.pipeline", "-auto-approve"])
+    run(["terraform", f"-chdir={pipeline_dir}", "apply", "-auto-approve"])
 
 
 if __name__ == "__main__":
@@ -256,7 +256,7 @@ if __name__ == "__main__":
                 http_linked_service_name,
                 adls_linked_service_name,
             )
-            deploy_stack(pipeline_dir)
+            deploy_pipeline_stack(pipeline_dir)
             sys.exit(0)
 
         write_rg_tfvars(rg_dir)
@@ -284,7 +284,7 @@ if __name__ == "__main__":
             http_linked_service_name,
             adls_linked_service_name,
         )
-        deploy_stack(pipeline_dir)
+        deploy_pipeline_stack(pipeline_dir)
     except subprocess.CalledProcessError as exc:
         print(f"Command failed: {exc}")
         sys.exit(exc.returncode)

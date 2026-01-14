@@ -73,5 +73,6 @@ resource "azurerm_storage_blob" "parameters_json" {
   storage_container_name = azurerm_storage_container.medallion["bronze"].name
   type                   = "Block"
   source                 = local.parameters_file_path
+  content_md5            = filemd5(local.parameters_file_path)
   content_type           = "application/json"
 }

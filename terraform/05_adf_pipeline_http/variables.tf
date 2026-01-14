@@ -37,18 +37,6 @@ variable "http_dataset_name_prefix" {
   default     = "ds_http_airline"
 }
 
-variable "parameters_dataset_name" {
-  type        = string
-  description = "Parameters JSON dataset name (if null, uses parameters_dataset_name_prefix + random suffix)"
-  default     = null
-}
-
-variable "parameters_dataset_name_prefix" {
-  type        = string
-  description = "Prefix used to build the parameters dataset name when parameters_dataset_name is null"
-  default     = "ds_parameters_airline"
-}
-
 variable "sink_dataset_name" {
   type        = string
   description = "ADLS sink dataset name (if null, uses sink_dataset_name_prefix + random suffix)"
@@ -59,24 +47,6 @@ variable "sink_dataset_name_prefix" {
   type        = string
   description = "Prefix used to build the sink dataset name when sink_dataset_name is null"
   default     = "ds_adls_bronze_airline"
-}
-
-variable "parameters_container" {
-  type        = string
-  description = "ADLS container for the parameters JSON"
-  default     = "bronze"
-}
-
-variable "parameters_path" {
-  type        = string
-  description = "Folder path inside the parameters container"
-  default     = "parameters"
-}
-
-variable "parameters_file" {
-  type        = string
-  description = "Parameters JSON file name"
-  default     = "parameters.json"
 }
 
 variable "sink_file_system" {
