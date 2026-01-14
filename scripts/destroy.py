@@ -18,6 +18,14 @@ DEFAULTS = {
     "http_enable_certificate_validation": True,
     "adls_linked_service_name_prefix": "ls-adls-airline",
     "linked_services_description": "Linked services for HTTP source and ADLS Gen2 sink",
+    "pipeline_name_prefix": "pl-airline-http",
+    "http_dataset_name_prefix": "ds_http_airline",
+    "parameters_dataset_name_prefix": "ds_parameters_airline",
+    "sink_dataset_name_prefix": "ds_adls_bronze_airline",
+    "parameters_container": "bronze",
+    "parameters_path": "parameters",
+    "parameters_file": "parameters.json",
+    "sink_file_system": "bronze",
 }
 
 
@@ -154,6 +162,30 @@ def write_adf_linked_services_tfvars(linked_services_dir, data_factory_dir, stor
     write_tfvars(linked_services_dir / "terraform.tfvars", items)
 
 
+def write_adf_pipeline_tfvars(pipeline_dir, data_factory_dir, linked_services_dir):
+    data_factory_id = get_output_optional(data_factory_dir, "data_factory_id")
+    http_linked_service_name = get_output_optional(linked_services_dir, "http_linked_service_name")
+    adls_linked_service_name = get_output_optional(linked_services_dir, "adls_linked_service_name")
+    if not data_factory_id:
+        raise RuntimeError("Data Factory ID not found for pipeline destroy.")
+    if not http_linked_service_name or not adls_linked_service_name:
+        raise RuntimeError("Linked service outputs not found for pipeline destroy.")
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("http_linked_service_name", http_linked_service_name),
+        ("adls_linked_service_name", adls_linked_service_name),
+        ("pipeline_name_prefix", DEFAULTS["pipeline_name_prefix"]),
+        ("http_dataset_name_prefix", DEFAULTS["http_dataset_name_prefix"]),
+        ("parameters_dataset_name_prefix", DEFAULTS["parameters_dataset_name_prefix"]),
+        ("sink_dataset_name_prefix", DEFAULTS["sink_dataset_name_prefix"]),
+        ("parameters_container", DEFAULTS["parameters_container"]),
+        ("parameters_path", DEFAULTS["parameters_path"]),
+        ("parameters_file", DEFAULTS["parameters_file"]),
+        ("sink_file_system", DEFAULTS["sink_file_system"]),
+    ]
+    write_tfvars(pipeline_dir / "terraform.tfvars", items)
+
+
 def destroy_stack(tf_dir):
     if not tf_dir.exists():
         raise FileNotFoundError(f"Missing Terraform dir: {tf_dir}")
@@ -168,6 +200,7 @@ if __name__ == "__main__":
         group.add_argument("--storage-only", action="store_true", help="Destroy only the storage account stack")
         group.add_argument("--datafactory-only", action="store_true", help="Destroy only the data factory stack")
         group.add_argument("--adf-links-only", action="store_true", help="Destroy only the ADF linked services stack")
+        group.add_argument("--adf-pipeline-only", action="store_true", help="Destroy only the ADF pipeline stack")
         args = parser.parse_args()
 
         repo_root = Path(__file__).resolve().parent.parent
@@ -177,6 +210,7 @@ if __name__ == "__main__":
         storage_dir = repo_root / "terraform" / "02_storage_account"
         data_factory_dir = repo_root / "terraform" / "03_data_factory"
         linked_services_dir = repo_root / "terraform" / "04_adf_linked_services"
+        pipeline_dir = repo_root / "terraform" / "05_adf_pipeline_http"
 
         if args.storage_only:
             rg_name = get_rg_name(rg_dir)
@@ -192,6 +226,13 @@ if __name__ == "__main__":
                 raise RuntimeError("Resource group name not found for data factory destroy.")
             write_data_factory_tfvars(data_factory_dir, rg_name)
             destroy_stack(data_factory_dir)
+            sys.exit(0)
+
+        if args.adf_pipeline_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={linked_services_dir}", "init"])
+            write_adf_pipeline_tfvars(pipeline_dir, data_factory_dir, linked_services_dir)
+            destroy_stack(pipeline_dir)
             sys.exit(0)
 
         if args.adf_links_only:
@@ -211,9 +252,12 @@ if __name__ == "__main__":
 
         run(["terraform", f"-chdir={data_factory_dir}", "init"])
         run(["terraform", f"-chdir={storage_dir}", "init"])
+        run(["terraform", f"-chdir={linked_services_dir}", "init"])
+        write_adf_pipeline_tfvars(pipeline_dir, data_factory_dir, linked_services_dir)
         write_adf_linked_services_tfvars(linked_services_dir, data_factory_dir, storage_dir)
         write_data_factory_tfvars(data_factory_dir, rg_name)
         write_storage_tfvars(storage_dir, rg_name)
+        destroy_stack(pipeline_dir)
         destroy_stack(linked_services_dir)
         destroy_stack(data_factory_dir)
         destroy_stack(storage_dir)

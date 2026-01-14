@@ -48,9 +48,11 @@ After installing, re-open PowerShell and re-run terraform version.
 - `terraform/02_storage_account`: ADLS Gen2 storage account + medallion containers
 - `terraform/03_data_factory`: Azure Data Factory v2
 - `terraform/04_adf_linked_services`: ADF linked services (HTTP via azapi + ADLS Gen2)
+- `terraform/05_adf_pipeline_http`: ADF pipeline + datasets (lookup -> foreach -> copy)
 - `scripts/`: Helper scripts to deploy/destroy Terraform resources
 - `guides/setup.md`: This guide
 - `data/`: Local data assets
+- `parameters/`: Pipeline parameters JSON
 
 ## Configure Terraform
 The deploy script writes `terraform/01_resource_group/terraform.tfvars`,
@@ -63,6 +65,7 @@ Example variables files:
 - `terraform/02_storage_account/terraform.tfvars.example`
 - `terraform/03_data_factory/terraform.tfvars.example`
 - `terraform/04_adf_linked_services/terraform.tfvars.example`
+- `terraform/05_adf_pipeline_http/terraform.tfvars.example`
 
 ## Resource Naming
 Resource names are built from a prefix plus a random pet suffix.
@@ -82,6 +85,7 @@ python scripts\deploy.py --rg-only
 python scripts\deploy.py --storage-only
 python scripts\deploy.py --datafactory-only
 python scripts\deploy.py --adf-links-only
+python scripts\deploy.py --adf-pipeline-only
 ```
 
 ## Destroy Resources
@@ -98,6 +102,7 @@ python scripts\destroy.py --rg-only
 python scripts\destroy.py --storage-only
 python scripts\destroy.py --datafactory-only
 python scripts\destroy.py --adf-links-only
+python scripts\destroy.py --adf-pipeline-only
 ```
 
 ## Notes
@@ -105,6 +110,8 @@ python scripts\destroy.py --adf-links-only
 - Storage defaults to Standard performance, LRS, ADLS Gen2 (HNS enabled), and public network access.
 - Containers created by default: bronze, silver, gold.
 - Linked services include an HTTP source (via azapi) and ADLS Gen2 sink (account key).
+- The `parameters/parameters.json` file is uploaded to `bronze/parameters/parameters.json` if present.
+- The ADF pipeline reads the parameters JSON, then copies each HTTP CSV into `bronze/airport/<file>`.
 - Data Factory is provisioned as v2 with a random pet suffix by default.
 - Terraform state and tfvars files are gitignored by default.
 - The random suffix keeps resource names unique per deployment.

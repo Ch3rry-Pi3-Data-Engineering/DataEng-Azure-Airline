@@ -1,0 +1,143 @@
+[
+  {
+    "p_rel_url": "Ch3rry-Pi3-Data-Engineering/DataEng-Azure-Airline/refs/heads/main/data/DimAirline.csv",
+    "p_sink_folder": "airport",
+    "p_sink_file": "airline.csv",
+    "p_mapping": [
+      {
+        "source": {
+          "name": "airline_id",
+          "type": "Int64"
+        },
+        "sink": {
+          "name": "airline_id",
+          "type": "Int64"
+        }
+      },
+      {
+        "source": {
+          "name": "airline_name",
+          "type": "String"
+        },
+        "sink": {
+          "name": "airline_name",
+          "type": "String"
+        }
+      },
+      {
+        "source": {
+          "name": "country",
+          "type": "String"
+        },
+        "sink": {
+          "name": "country",
+          "type": "String"
+        }
+      }
+    ]
+  },
+  {
+    "p_rel_url": "Ch3rry-Pi3-Data-Engineering/DataEng-Azure-Airline/refs/heads/main/data/DimFlight.csv",
+    "p_sink_folder": "airport",
+    "p_sink_file": "flight.csv",
+    "p_mapping": [
+      {
+        "source": {
+          "name": "flight_id",
+          "type": "Int64"
+        },
+        "sink": {
+          "name": "flight_id",
+          "type": "Int64"
+        }
+      },
+      {
+        "source": {
+          "name": "flight_number",
+          "type": "String"
+        },
+        "sink": {
+          "name": "flight_number",
+          "type": "String"
+        }
+      },
+      {
+        "source": {
+          "name": "departure_time",
+          "type": "String"
+        },
+        "sink": {
+          "name": "departure_time",
+          "type": "String"
+        }
+      },
+      {
+        "source": {
+          "name": "arrival_time",
+          "type": "String"
+        },
+        "sink": {
+          "name": "arrival_time",
+          "type": "String"
+        }
+      }
+    ]
+  },
+  {
+    "p_rel_url": "Ch3rry-Pi3-Data-Engineering/DataEng-Azure-Airline/refs/heads/main/data/DimPassenger.csv",
+    "p_sink_folder": "airport",
+    "p_sink_file": "passenger.csv",
+    "p_mapping": [
+      {
+        "source": {
+          "name": "passenger_id",
+          "type": "Int64"
+        },
+        "sink": {
+          "name": "passenger_id",
+          "type": "Int64"
+        }
+      },
+      {
+        "source": {
+          "name": "full_name",
+          "type": "String"
+        },
+        "sink": {
+          "name": "full_name",
+          "type": "String"
+        }
+      },
+      {
+        "source": {
+          "name": "gender",
+          "type": "String"
+        },
+        "sink": {
+          "name": "gender",
+          "type": "String"
+        }
+      },
+      {
+        "source": {
+          "name": "age",
+          "type": "Int64"
+        },
+        "sink": {
+          "name": "age",
+          "type": "Int64"
+        }
+      },
+      {
+        "source": {
+          "name": "country",
+          "type": "String"
+        },
+        "sink": {
+          "name": "country",
+          "type": "String"
+        }
+      }
+    ]
+  }
+]

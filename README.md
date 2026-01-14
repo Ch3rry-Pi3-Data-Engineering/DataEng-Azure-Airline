@@ -18,7 +18,7 @@ az account show
 ```powershell
 python scripts\deploy.py
 ```
-This deploys the resource group, storage account, data factory, and ADF linked services.
+This deploys the resource group, storage account, data factory, ADF linked services, and the ADF pipeline.
 
 ## Architecture Overview
 ```mermaid
@@ -43,15 +43,18 @@ Set `resource_group_name` in `terraform/01_resource_group/terraform.tfvars` (or 
 - `terraform/02_storage_account`: ADLS Gen2 storage account + medallion containers
 - `terraform/03_data_factory`: Azure Data Factory v2
 - `terraform/04_adf_linked_services`: ADF linked services (HTTP via azapi + ADLS Gen2)
+- `terraform/05_adf_pipeline_http`: ADF pipeline + datasets (lookup -> foreach -> copy)
 - `scripts/`: Deploy/destroy helpers (auto-writes terraform.tfvars)
 - `guides/setup.md`: Detailed setup guide
 - `data/`: Local data assets
+- `parameters/`: Pipeline parameters JSON
 
 Example variables files:
 - `terraform/01_resource_group/terraform.tfvars.example`
 - `terraform/02_storage_account/terraform.tfvars.example`
 - `terraform/03_data_factory/terraform.tfvars.example`
 - `terraform/04_adf_linked_services/terraform.tfvars.example`
+- `terraform/05_adf_pipeline_http/terraform.tfvars.example`
 
 ## Deploy/Destroy Options
 Deploy:
@@ -61,6 +64,7 @@ python scripts\deploy.py --rg-only
 python scripts\deploy.py --storage-only
 python scripts\deploy.py --datafactory-only
 python scripts\deploy.py --adf-links-only
+python scripts\deploy.py --adf-pipeline-only
 ```
 
 Destroy:
@@ -70,6 +74,7 @@ python scripts\destroy.py --rg-only
 python scripts\destroy.py --storage-only
 python scripts\destroy.py --datafactory-only
 python scripts\destroy.py --adf-links-only
+python scripts\destroy.py --adf-pipeline-only
 ```
 
 ## Guide

@@ -29,6 +29,8 @@ resource "random_pet" "storage" {
 locals {
   storage_account_name = var.storage_account_name != null ? var.storage_account_name : substr("${var.storage_account_name_prefix}${random_pet.storage.id}", 0, 24)
   container_names      = toset(var.container_names)
+  parameters_file_path = "${path.module}/../../parameters/parameters.json"
+  parameters_blob_name = "parameters/parameters.json"
 }
 
 resource "azurerm_storage_account" "main" {
@@ -62,4 +64,14 @@ resource "azurerm_storage_container" "medallion" {
   name                  = each.key
   storage_account_name  = azurerm_storage_account.main.name
   container_access_type = "private"
+}
+
+resource "azurerm_storage_blob" "parameters_json" {
+  count                  = fileexists(local.parameters_file_path) ? 1 : 0
+  name                   = local.parameters_blob_name
+  storage_account_name   = azurerm_storage_account.main.name
+  storage_container_name = azurerm_storage_container.medallion["bronze"].name
+  type                   = "Block"
+  source                 = local.parameters_file_path
+  content_type           = "application/json"
 }
