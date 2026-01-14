@@ -1,0 +1,21 @@
+data_factory_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DataFactory/factories/<factory>"
+sql_linked_service_name = "ls-sql-airline-example"
+adls_linked_service_name = "ls-adls-airline-example"
+
+pipeline_name_prefix = "pl-airline-bookings"
+sql_dataset_name_prefix = "ds_sql_airline"
+json_dataset_name_prefix = "ds_json_airline"
+parquet_dataset_name_prefix = "ds_parquet_airline"
+
+monitor_container = "bronze"
+monitor_empty_folder = "monitor/emptyjson"
+monitor_empty_file = "empty.json"
+monitor_lastload_folder = "monitor/lastload"
+monitor_lastload_file = "last_load.json"
+
+sink_container = "bronze"
+sink_folder = "airport"
+sink_file = "fact_bookings.parquet"
+
+sql_schema = "dbo"
+sql_table = "FactBookings"

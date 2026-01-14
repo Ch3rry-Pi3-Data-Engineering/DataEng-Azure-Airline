@@ -8,4 +8,10 @@ adls_linked_service_name_prefix = "ls-adls-airline"
 storage_dfs_endpoint = "https://stairline<random>.dfs.core.windows.net"
 storage_account_key = "<set-me>"
 
-description = "Linked services for HTTP source and ADLS Gen2 sink"
+sql_linked_service_name_prefix = "ls-sql-airline"
+sql_server_fqdn = "sql-airline<random>.database.windows.net"
+sql_database_name = "airline-dev"
+sql_username = "sqladmin"
+sql_password = "<set-me>"
+
+description = "Linked services for HTTP source, SQL, and ADLS Gen2 sink"

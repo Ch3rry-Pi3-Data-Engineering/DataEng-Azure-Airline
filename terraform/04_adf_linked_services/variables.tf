@@ -45,6 +45,18 @@ variable "adls_linked_service_name_prefix" {
   default     = "ls-adls-airline"
 }
 
+variable "sql_linked_service_name" {
+  type        = string
+  description = "Name of the Azure SQL Database linked service (if null, uses sql_linked_service_name_prefix + random suffix)"
+  default     = null
+}
+
+variable "sql_linked_service_name_prefix" {
+  type        = string
+  description = "Prefix used to build the Azure SQL Database linked service name when sql_linked_service_name is null"
+  default     = "ls-sql-airline"
+}
+
 variable "storage_dfs_endpoint" {
   type        = string
   description = "ADLS Gen2 DFS endpoint (https://<account>.dfs.core.windows.net)"
@@ -56,8 +68,29 @@ variable "storage_account_key" {
   sensitive   = true
 }
 
+variable "sql_server_fqdn" {
+  type        = string
+  description = "SQL Server FQDN (server.database.windows.net)"
+}
+
+variable "sql_database_name" {
+  type        = string
+  description = "SQL database name"
+}
+
+variable "sql_username" {
+  type        = string
+  description = "SQL authentication username"
+}
+
+variable "sql_password" {
+  type        = string
+  description = "SQL authentication password"
+  sensitive   = true
+}
+
 variable "description" {
   type        = string
   description = "Linked service description"
-  default     = "Linked services for HTTP source and ADLS Gen2 sink"
+  default     = "Linked services for HTTP source, SQL, and ADLS Gen2 sink"
 }

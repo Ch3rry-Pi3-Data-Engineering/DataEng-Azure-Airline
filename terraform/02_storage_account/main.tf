@@ -31,6 +31,10 @@ locals {
   container_names      = toset(var.container_names)
   parameters_file_path = "${path.module}/../../parameters/parameters.json"
   parameters_blob_name = "parameters/parameters.json"
+  empty_json_path      = "${path.module}/../../sql_scripts/empty.json"
+  last_load_json_path  = "${path.module}/../../sql_scripts/last_load.json"
+  empty_json_blob_name = "monitor/emptyjson/empty.json"
+  last_load_blob_name  = "monitor/lastload/last_load.json"
 }
 
 resource "azurerm_storage_account" "main" {
@@ -74,5 +78,27 @@ resource "azurerm_storage_blob" "parameters_json" {
   type                   = "Block"
   source                 = local.parameters_file_path
   content_md5            = filemd5(local.parameters_file_path)
+  content_type           = "application/json"
+}
+
+resource "azurerm_storage_blob" "monitor_empty_json" {
+  count                  = fileexists(local.empty_json_path) ? 1 : 0
+  name                   = local.empty_json_blob_name
+  storage_account_name   = azurerm_storage_account.main.name
+  storage_container_name = azurerm_storage_container.medallion["bronze"].name
+  type                   = "Block"
+  source                 = local.empty_json_path
+  content_md5            = filemd5(local.empty_json_path)
+  content_type           = "application/json"
+}
+
+resource "azurerm_storage_blob" "monitor_last_load_json" {
+  count                  = fileexists(local.last_load_json_path) ? 1 : 0
+  name                   = local.last_load_blob_name
+  storage_account_name   = azurerm_storage_account.main.name
+  storage_container_name = azurerm_storage_container.medallion["bronze"].name
+  type                   = "Block"
+  source                 = local.last_load_json_path
+  content_md5            = filemd5(local.last_load_json_path)
   content_type           = "application/json"
 }
