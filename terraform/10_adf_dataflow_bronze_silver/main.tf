@@ -64,11 +64,11 @@ locals {
     "drPassenger alterRow(upsertIf(true())) ~> arPassenger",
     "drAirport alterRow(upsertIf(true())) ~> arAirport",
     "drBookings alterRow(upsertIf(true())) ~> arBookings",
-    "arAirline sink(allowSchemaDrift: true, validateSchema: false, format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_airline_path}', compressionType: 'snappy', updateMethod: 'upsert', keyColumns: ['airline_id']) ~> sinkAirline",
-    "arFlight sink(allowSchemaDrift: true, validateSchema: false, format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_flight_path}', compressionType: 'snappy', updateMethod: 'upsert', keyColumns: ['flight_id']) ~> sinkFlight",
-    "arPassenger sink(allowSchemaDrift: true, validateSchema: false, format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_passenger_path}', compressionType: 'snappy', updateMethod: 'upsert', keyColumns: ['passenger_id']) ~> sinkPassenger",
-    "arAirport sink(allowSchemaDrift: true, validateSchema: false, format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_airport_path}', compressionType: 'snappy', updateMethod: 'upsert', keyColumns: ['airport_id']) ~> sinkAirport",
-    "arBookings sink(allowSchemaDrift: true, validateSchema: false, format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_bookings_path}', compressionType: 'snappy', updateMethod: 'upsert', keyColumns: ['booking_id']) ~> sinkBookings",
+    "arAirline sink(allowSchemaDrift: true, validateSchema: false, store: 'AzureBlobFS', format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_airline_path}', insertable: true, updateable: true, upsertable: true, keys: ['airline_id']) ~> sinkAirline",
+    "arFlight sink(allowSchemaDrift: true, validateSchema: false, store: 'AzureBlobFS', format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_flight_path}', insertable: true, updateable: true, upsertable: true, keys: ['flight_id']) ~> sinkFlight",
+    "arPassenger sink(allowSchemaDrift: true, validateSchema: false, store: 'AzureBlobFS', format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_passenger_path}', insertable: true, updateable: true, upsertable: true, keys: ['passenger_id']) ~> sinkPassenger",
+    "arAirport sink(allowSchemaDrift: true, validateSchema: false, store: 'AzureBlobFS', format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_airport_path}', insertable: true, updateable: true, upsertable: true, keys: ['airport_id']) ~> sinkAirport",
+    "arBookings sink(allowSchemaDrift: true, validateSchema: false, store: 'AzureBlobFS', format: 'delta', fileSystem: '${var.sink_container}', folderPath: '${local.sink_bookings_path}', insertable: true, updateable: true, upsertable: true, keys: ['booking_id']) ~> sinkBookings",
   ]
 
   dataflow_body = {
@@ -125,11 +125,41 @@ locals {
           { name = "arBookings" },
         ]
         sinks = [
-          { name = "sinkAirline" },
-          { name = "sinkFlight" },
-          { name = "sinkPassenger" },
-          { name = "sinkAirport" },
-          { name = "sinkBookings" }
+          {
+            name = "sinkAirline"
+            linkedService = {
+              referenceName = var.adls_linked_service_name
+              type          = "LinkedServiceReference"
+            }
+          },
+          {
+            name = "sinkFlight"
+            linkedService = {
+              referenceName = var.adls_linked_service_name
+              type          = "LinkedServiceReference"
+            }
+          },
+          {
+            name = "sinkPassenger"
+            linkedService = {
+              referenceName = var.adls_linked_service_name
+              type          = "LinkedServiceReference"
+            }
+          },
+          {
+            name = "sinkAirport"
+            linkedService = {
+              referenceName = var.adls_linked_service_name
+              type          = "LinkedServiceReference"
+            }
+          },
+          {
+            name = "sinkBookings"
+            linkedService = {
+              referenceName = var.adls_linked_service_name
+              type          = "LinkedServiceReference"
+            }
+          }
         ]
         scriptLines = local.dataflow_script_lines
       }
