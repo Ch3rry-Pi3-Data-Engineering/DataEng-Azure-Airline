@@ -1,0 +1,20 @@
+data_factory_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DataFactory/factories/<factory>"
+adls_linked_service_name = "ls-adls-airline-example"
+
+dataflow_name_prefix = "df-airline-bronze-silver"
+
+source_container = "bronze"
+source_folder = "airport"
+airline_source_file = "airline.csv"
+flight_source_file = "flight.csv"
+passenger_source_file = "passenger.csv"
+airport_source_file = "airport.json"
+bookings_source_file = "fact_bookings.parquet"
+
+sink_container = "silver"
+sink_folder = "airport"
+airline_sink_file = "airline.parquet"
+flight_sink_file = "flight.parquet"
+passenger_sink_file = "passenger.parquet"
+airport_sink_file = "airport.parquet"
+bookings_sink_file = "fact_bookings.parquet"

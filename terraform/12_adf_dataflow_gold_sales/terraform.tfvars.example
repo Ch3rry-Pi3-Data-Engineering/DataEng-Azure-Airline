@@ -1,0 +1,12 @@
+data_factory_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DataFactory/factories/<factory>"
+adls_linked_service_name = "ls-adls-airline-example"
+dataflow_name_prefix = "df-airline-gold-sales"
+
+source_container = "silver"
+source_folder = "airport"
+airline_source_file = "airline.parquet"
+bookings_source_file = "fact_bookings.parquet"
+
+sink_container = "gold"
+sink_folder = "airport"
+sink_name = "airline_sales_top5"

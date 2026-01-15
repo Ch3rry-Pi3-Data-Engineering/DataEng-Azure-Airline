@@ -51,6 +51,31 @@ DEFAULTS = {
     "bookings_sink_file": "fact_bookings.parquet",
     "bookings_sql_schema": "dbo",
     "bookings_sql_table": "FactBookings",
+    "master_pipeline_name_prefix": "pl-airline-master",
+    "silver_pipeline_name_prefix": "pl-airline-silver-dataflow",
+    "dataflow_name_prefix": "df-airline-bronze-silver",
+    "dataflow_source_container": "bronze",
+    "dataflow_source_folder": "airport",
+    "dataflow_airline_source_file": "airline.csv",
+    "dataflow_flight_source_file": "flight.csv",
+    "dataflow_passenger_source_file": "passenger.csv",
+    "dataflow_airport_source_file": "airport.json",
+    "dataflow_bookings_source_file": "fact_bookings.parquet",
+    "dataflow_sink_container": "silver",
+    "dataflow_sink_folder": "airport",
+    "dataflow_airline_sink_file": "airline.parquet",
+    "dataflow_flight_sink_file": "flight.parquet",
+    "dataflow_passenger_sink_file": "passenger.parquet",
+    "dataflow_airport_sink_file": "airport.parquet",
+    "dataflow_bookings_sink_file": "fact_bookings.parquet",
+    "gold_dataflow_name_prefix": "df-airline-gold-sales",
+    "gold_source_container": "silver",
+    "gold_source_folder": "airport",
+    "gold_airline_source_file": "airline.parquet",
+    "gold_bookings_source_file": "fact_bookings.parquet",
+    "gold_sink_container": "gold",
+    "gold_sink_folder": "airport",
+    "gold_sink_name": "airline_sales_top5",
     "sql_server_name_prefix": "sql-airline",
     "sql_admin_login": "sqladmin",
     "sql_database_name": "airline-dev",
@@ -492,6 +517,87 @@ def write_adf_bookings_pipeline_tfvars(
     write_tfvars(pipeline_dir / "terraform.tfvars", items)
 
 
+def write_adf_master_pipeline_tfvars(
+    pipeline_dir,
+    data_factory_id,
+    http_pipeline_name,
+    airport_pipeline_name,
+    bookings_pipeline_name,
+    silver_pipeline_name,
+):
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("http_pipeline_name", http_pipeline_name),
+        ("airport_pipeline_name", airport_pipeline_name),
+        ("bookings_pipeline_name", bookings_pipeline_name),
+        ("silver_pipeline_name", silver_pipeline_name),
+        ("pipeline_name_prefix", DEFAULTS["master_pipeline_name_prefix"]),
+        ("airport_url", DEFAULTS["airport_url"]),
+        ("airport_rel_url", DEFAULTS["airport_rel_url"]),
+    ]
+    write_tfvars(pipeline_dir / "terraform.tfvars", items)
+
+
+def write_adf_dataflow_tfvars(
+    dataflow_dir,
+    data_factory_id,
+    adls_linked_service_name,
+):
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("adls_linked_service_name", adls_linked_service_name),
+        ("dataflow_name_prefix", DEFAULTS["dataflow_name_prefix"]),
+        ("source_container", DEFAULTS["dataflow_source_container"]),
+        ("source_folder", DEFAULTS["dataflow_source_folder"]),
+        ("airline_source_file", DEFAULTS["dataflow_airline_source_file"]),
+        ("flight_source_file", DEFAULTS["dataflow_flight_source_file"]),
+        ("passenger_source_file", DEFAULTS["dataflow_passenger_source_file"]),
+        ("airport_source_file", DEFAULTS["dataflow_airport_source_file"]),
+        ("bookings_source_file", DEFAULTS["dataflow_bookings_source_file"]),
+        ("sink_container", DEFAULTS["dataflow_sink_container"]),
+        ("sink_folder", DEFAULTS["dataflow_sink_folder"]),
+        ("airline_sink_file", DEFAULTS["dataflow_airline_sink_file"]),
+        ("flight_sink_file", DEFAULTS["dataflow_flight_sink_file"]),
+        ("passenger_sink_file", DEFAULTS["dataflow_passenger_sink_file"]),
+        ("airport_sink_file", DEFAULTS["dataflow_airport_sink_file"]),
+        ("bookings_sink_file", DEFAULTS["dataflow_bookings_sink_file"]),
+    ]
+    write_tfvars(dataflow_dir / "terraform.tfvars", items)
+
+
+def write_adf_gold_dataflow_tfvars(
+    dataflow_dir,
+    data_factory_id,
+    adls_linked_service_name,
+):
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("adls_linked_service_name", adls_linked_service_name),
+        ("dataflow_name_prefix", DEFAULTS["gold_dataflow_name_prefix"]),
+        ("source_container", DEFAULTS["gold_source_container"]),
+        ("source_folder", DEFAULTS["gold_source_folder"]),
+        ("airline_source_file", DEFAULTS["gold_airline_source_file"]),
+        ("bookings_source_file", DEFAULTS["gold_bookings_source_file"]),
+        ("sink_container", DEFAULTS["gold_sink_container"]),
+        ("sink_folder", DEFAULTS["gold_sink_folder"]),
+        ("sink_name", DEFAULTS["gold_sink_name"]),
+    ]
+    write_tfvars(dataflow_dir / "terraform.tfvars", items)
+
+
+def write_adf_silver_pipeline_tfvars(
+    pipeline_dir,
+    data_factory_id,
+    dataflow_name,
+):
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("dataflow_name", dataflow_name),
+        ("pipeline_name_prefix", DEFAULTS["silver_pipeline_name_prefix"]),
+    ]
+    write_tfvars(pipeline_dir / "terraform.tfvars", items)
+
+
 def deploy_stack(tf_dir):
     if not tf_dir.exists():
         raise FileNotFoundError(f"Missing Terraform dir: {tf_dir}")
@@ -505,6 +611,14 @@ def deploy_pipeline_stack(pipeline_dir):
     run(["terraform", f"-chdir={pipeline_dir}", "init"])
     run(["terraform", f"-chdir={pipeline_dir}", "apply", "-target=azapi_resource.pipeline", "-auto-approve"])
     run(["terraform", f"-chdir={pipeline_dir}", "apply", "-auto-approve"])
+
+
+def deploy_dataflow_stack(dataflow_dir):
+    if not dataflow_dir.exists():
+        raise FileNotFoundError(f"Missing Terraform dir: {dataflow_dir}")
+    run(["terraform", f"-chdir={dataflow_dir}", "init"])
+    run(["terraform", f"-chdir={dataflow_dir}", "apply", "-target=azapi_resource.dataflow", "-auto-approve"])
+    run(["terraform", f"-chdir={dataflow_dir}", "apply", "-auto-approve"])
 
 
 if __name__ == "__main__":
@@ -527,6 +641,26 @@ if __name__ == "__main__":
             action="store_true",
             help="Deploy only the ADF bookings SQL pipeline stack",
         )
+        group.add_argument(
+            "--adf-master-pipeline-only",
+            action="store_true",
+            help="Deploy only the ADF master pipeline stack",
+        )
+        group.add_argument(
+            "--adf-dataflow-only",
+            action="store_true",
+            help="Deploy only the ADF bronze-to-silver data flow stack",
+        )
+        group.add_argument(
+            "--adf-silver-pipeline-only",
+            action="store_true",
+            help="Deploy only the ADF silver data flow pipeline stack",
+        )
+        group.add_argument(
+            "--adf-gold-dataflow-only",
+            action="store_true",
+            help="Deploy only the ADF gold data flow stack",
+        )
         parser.add_argument("--sql-init", action="store_true", help="Run the SQL init script after SQL deploy")
         parser.add_argument("--skip-sql-init", action="store_true", help="Skip SQL init on full deploy")
         args = parser.parse_args()
@@ -540,6 +674,10 @@ if __name__ == "__main__":
             or args.adf_pipeline_only
             or args.adf_airport_pipeline_only
             or args.adf_bookings_pipeline_only
+            or args.adf_master_pipeline_only
+            or args.adf_dataflow_only
+            or args.adf_silver_pipeline_only
+            or args.adf_gold_dataflow_only
         )
         run_sql_init = args.sql_init or (full_deploy and not args.skip_sql_init)
 
@@ -553,6 +691,10 @@ if __name__ == "__main__":
         pipeline_dir = repo_root / "terraform" / "05_adf_pipeline_http"
         pipeline_airport_dir = repo_root / "terraform" / "06_adf_pipeline_airport_json"
         pipeline_bookings_dir = repo_root / "terraform" / "08_adf_pipeline_fact_bookings_incremental"
+        pipeline_master_dir = repo_root / "terraform" / "09_adf_pipeline_master"
+        dataflow_dir = repo_root / "terraform" / "10_adf_dataflow_bronze_silver"
+        pipeline_silver_dir = repo_root / "terraform" / "11_adf_pipeline_silver_dataflow"
+        gold_dataflow_dir = repo_root / "terraform" / "12_adf_dataflow_gold_sales"
 
         if args.rg_only:
             write_rg_tfvars(rg_dir)
@@ -652,6 +794,67 @@ if __name__ == "__main__":
             deploy_pipeline_stack(pipeline_bookings_dir)
             sys.exit(0)
 
+        if args.adf_master_pipeline_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_airport_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_bookings_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_silver_dir}", "init"])
+            data_factory_id = get_output(data_factory_dir, "data_factory_id")
+            http_pipeline_name = get_output(pipeline_dir, "pipeline_name")
+            airport_pipeline_name = get_output(pipeline_airport_dir, "pipeline_name")
+            bookings_pipeline_name = get_output(pipeline_bookings_dir, "pipeline_name")
+            silver_pipeline_name = get_output(pipeline_silver_dir, "pipeline_name")
+            write_adf_master_pipeline_tfvars(
+                pipeline_master_dir,
+                data_factory_id,
+                http_pipeline_name,
+                airport_pipeline_name,
+                bookings_pipeline_name,
+                silver_pipeline_name,
+            )
+            deploy_pipeline_stack(pipeline_master_dir)
+            sys.exit(0)
+
+        if args.adf_dataflow_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={linked_services_dir}", "init"])
+            data_factory_id = get_output(data_factory_dir, "data_factory_id")
+            adls_linked_service_name = get_output(linked_services_dir, "adls_linked_service_name")
+            write_adf_dataflow_tfvars(
+                dataflow_dir,
+                data_factory_id,
+                adls_linked_service_name,
+            )
+            deploy_dataflow_stack(dataflow_dir)
+            sys.exit(0)
+
+        if args.adf_silver_pipeline_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={dataflow_dir}", "init"])
+            data_factory_id = get_output(data_factory_dir, "data_factory_id")
+            dataflow_name = get_output(dataflow_dir, "dataflow_name")
+            write_adf_silver_pipeline_tfvars(
+                pipeline_silver_dir,
+                data_factory_id,
+                dataflow_name,
+            )
+            deploy_pipeline_stack(pipeline_silver_dir)
+            sys.exit(0)
+
+        if args.adf_gold_dataflow_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={linked_services_dir}", "init"])
+            data_factory_id = get_output(data_factory_dir, "data_factory_id")
+            adls_linked_service_name = get_output(linked_services_dir, "adls_linked_service_name")
+            write_adf_gold_dataflow_tfvars(
+                gold_dataflow_dir,
+                data_factory_id,
+                adls_linked_service_name,
+            )
+            deploy_dataflow_stack(gold_dataflow_dir)
+            sys.exit(0)
+
         write_rg_tfvars(rg_dir)
         deploy_stack(rg_dir)
         rg_name = get_output(rg_dir, "resource_group_name")
@@ -704,6 +907,38 @@ if __name__ == "__main__":
             adls_linked_service_name,
         )
         deploy_pipeline_stack(pipeline_bookings_dir)
+        write_adf_dataflow_tfvars(
+            dataflow_dir,
+            data_factory_id,
+            adls_linked_service_name,
+        )
+        deploy_dataflow_stack(dataflow_dir)
+        dataflow_name = get_output(dataflow_dir, "dataflow_name")
+        write_adf_silver_pipeline_tfvars(
+            pipeline_silver_dir,
+            data_factory_id,
+            dataflow_name,
+        )
+        deploy_pipeline_stack(pipeline_silver_dir)
+        write_adf_gold_dataflow_tfvars(
+            gold_dataflow_dir,
+            data_factory_id,
+            adls_linked_service_name,
+        )
+        deploy_dataflow_stack(gold_dataflow_dir)
+        http_pipeline_name = get_output(pipeline_dir, "pipeline_name")
+        airport_pipeline_name = get_output(pipeline_airport_dir, "pipeline_name")
+        bookings_pipeline_name = get_output(pipeline_bookings_dir, "pipeline_name")
+        silver_pipeline_name = get_output(pipeline_silver_dir, "pipeline_name")
+        write_adf_master_pipeline_tfvars(
+            pipeline_master_dir,
+            data_factory_id,
+            http_pipeline_name,
+            airport_pipeline_name,
+            bookings_pipeline_name,
+            silver_pipeline_name,
+        )
+        deploy_pipeline_stack(pipeline_master_dir)
     except subprocess.CalledProcessError as exc:
         print(f"Command failed: {exc}")
         sys.exit(exc.returncode)

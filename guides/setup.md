@@ -52,10 +52,77 @@ After installing, re-open PowerShell and re-run terraform version.
 - `terraform/06_adf_pipeline_airport_json`: ADF pipeline + datasets (web -> copy for JSON airport data)
 - `terraform/07_sql_database`: Azure SQL Server + database
 - `terraform/08_adf_pipeline_fact_bookings_incremental`: ADF pipeline + datasets (SQL incremental load -> parquet)
+- `terraform/09_adf_pipeline_master`: ADF pipeline orchestrator (executes all pipelines)
+- `terraform/10_adf_dataflow_bronze_silver`: ADF mapping data flow (bronze -> silver transformations)
+- `terraform/11_adf_pipeline_silver_dataflow`: ADF pipeline to execute the bronze-to-silver data flow
+- `terraform/12_adf_dataflow_gold_sales`: ADF mapping data flow (silver -> gold airline sales)
 - `scripts/`: Helper scripts to deploy/destroy Terraform resources
 - `guides/setup.md`: This guide
 - `data/`: Local data assets
 - `parameters/`: Reference JSON for pipeline parameter defaults
+
+## Bronze Pipelines
+### HTTP CSV Pipeline
+```mermaid
+flowchart LR
+    params[files + translators] --> foreach[ForEach files]
+    foreach --> copy[Copy HTTP CSV]
+    copy --> adls[ADLS bronze/airport/*.csv]
+```
+
+### Airport JSON Pipeline
+```mermaid
+flowchart LR
+    web[Web GET airport JSON] --> copy[Copy JSON]
+    copy --> adls[ADLS bronze/airport/airport.json]
+```
+
+### FactBookings Incremental Pipeline
+```mermaid
+flowchart LR
+    lastload[Lookup last_load.json] --> copy[Copy SQL -> Parquet]
+    latest[Lookup MAX(booking_date)] --> copy
+    copy --> sink[ADLS bronze/airport/fact_bookings.parquet]
+    copy --> update[Update last_load.json]
+    empty[empty.json] --> update
+    update --> marker[ADLS bronze/monitor/lastload/last_load.json]
+```
+
+### Master Pipeline
+```mermaid
+flowchart LR
+    master[Master pipeline] --> http[HTTP CSV pipeline]
+    http --> airport[Airport JSON pipeline]
+    airport --> bookings[Bookings pipeline]
+    bookings --> silver[Silver data flow pipeline]
+```
+
+### Bronze -> Silver Data Flow
+```mermaid
+flowchart LR
+    airline[airline.csv] --> df[Data flow transforms]
+    flight[flight.csv] --> df
+    passenger[passenger.csv] --> df
+    airport[airport.json] --> df
+    bookings[fact_bookings.parquet] --> df
+    df --> silver[Silver delta outputs]
+```
+
+### Silver Data Flow Pipeline
+```mermaid
+flowchart LR
+    pipeline[Silver pipeline] --> df[Bronze -> Silver data flow]
+    df --> silver[Silver delta outputs]
+```
+
+### Gold Data Flow
+```mermaid
+flowchart LR
+    bookings[Silver fact_bookings] --> join[Join + aggregate]
+    airline[Silver airline] --> join
+    join --> top5[Top 5 airline sales]
+    top5 --> gold[Gold delta output]
+```
 
 ## Configure Terraform
 The deploy script writes `terraform/01_resource_group/terraform.tfvars`,
@@ -72,6 +139,10 @@ Example variables files:
 - `terraform/06_adf_pipeline_airport_json/terraform.tfvars.example`
 - `terraform/07_sql_database/terraform.tfvars.example`
 - `terraform/08_adf_pipeline_fact_bookings_incremental/terraform.tfvars.example`
+- `terraform/09_adf_pipeline_master/terraform.tfvars.example`
+- `terraform/10_adf_dataflow_bronze_silver/terraform.tfvars.example`
+- `terraform/11_adf_pipeline_silver_dataflow/terraform.tfvars.example`
+- `terraform/12_adf_dataflow_gold_sales/terraform.tfvars.example`
 
 ## Resource Naming
 Resource names are built from a prefix plus a random pet suffix.
@@ -97,6 +168,10 @@ python scripts\deploy.py --adf-links-only
 python scripts\deploy.py --adf-pipeline-only
 python scripts\deploy.py --adf-airport-pipeline-only
 python scripts\deploy.py --adf-bookings-pipeline-only
+python scripts\deploy.py --adf-master-pipeline-only
+python scripts\deploy.py --adf-dataflow-only
+python scripts\deploy.py --adf-silver-pipeline-only
+python scripts\deploy.py --adf-gold-dataflow-only
 python scripts\deploy.py --sql-only --sql-init
 python scripts\deploy.py --skip-sql-init
 ```
@@ -119,6 +194,10 @@ python scripts\destroy.py --adf-links-only
 python scripts\destroy.py --adf-pipeline-only
 python scripts\destroy.py --adf-airport-pipeline-only
 python scripts\destroy.py --adf-bookings-pipeline-only
+python scripts\destroy.py --adf-master-pipeline-only
+python scripts\destroy.py --adf-dataflow-only
+python scripts\destroy.py --adf-silver-pipeline-only
+python scripts\destroy.py --adf-gold-dataflow-only
 ```
 
 ## Notes
@@ -133,6 +212,9 @@ python scripts\destroy.py --adf-bookings-pipeline-only
 - The pipeline copies each HTTP CSV into `bronze/airport/<file>` using the per-file translator.
 - The airport JSON pipeline runs a Web activity (GET) and copies the JSON into `bronze/airport/airport.json`.
 - The bookings pipeline reads `bronze/monitor/lastload/last_load.json`, loads new SQL rows into `bronze/airport`, and updates the marker.
+- The master pipeline executes the HTTP CSV, airport JSON, bookings, and silver data flow pipelines in sequence.
+- The bronze-to-silver data flow standardizes and enriches all five datasets before landing them in `silver/airport` as delta outputs.
+- The gold data flow rolls up airline sales and writes the top 5 airlines into `gold/airport`.
 - The SQL module provisions an Azure SQL Server + database. Initialize it with `sql_scripts/fact_bookings_full.sql`.
 
 ## SQL Setup

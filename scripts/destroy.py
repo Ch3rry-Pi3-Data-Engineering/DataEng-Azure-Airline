@@ -45,6 +45,31 @@ DEFAULTS = {
     "bookings_sink_file": "fact_bookings.parquet",
     "bookings_sql_schema": "dbo",
     "bookings_sql_table": "FactBookings",
+    "master_pipeline_name_prefix": "pl-airline-master",
+    "silver_pipeline_name_prefix": "pl-airline-silver-dataflow",
+    "dataflow_name_prefix": "df-airline-bronze-silver",
+    "dataflow_source_container": "bronze",
+    "dataflow_source_folder": "airport",
+    "dataflow_airline_source_file": "airline.csv",
+    "dataflow_flight_source_file": "flight.csv",
+    "dataflow_passenger_source_file": "passenger.csv",
+    "dataflow_airport_source_file": "airport.json",
+    "dataflow_bookings_source_file": "fact_bookings.parquet",
+    "dataflow_sink_container": "silver",
+    "dataflow_sink_folder": "airport",
+    "dataflow_airline_sink_file": "airline.parquet",
+    "dataflow_flight_sink_file": "flight.parquet",
+    "dataflow_passenger_sink_file": "passenger.parquet",
+    "dataflow_airport_sink_file": "airport.parquet",
+    "dataflow_bookings_sink_file": "fact_bookings.parquet",
+    "gold_dataflow_name_prefix": "df-airline-gold-sales",
+    "gold_source_container": "silver",
+    "gold_source_folder": "airport",
+    "gold_airline_source_file": "airline.parquet",
+    "gold_bookings_source_file": "fact_bookings.parquet",
+    "gold_sink_container": "gold",
+    "gold_sink_folder": "airport",
+    "gold_sink_name": "airline_sales_top5",
     "sql_server_name_prefix": "sql-airline",
     "sql_admin_login": "sqladmin",
     "sql_database_name": "airline-dev",
@@ -425,6 +450,114 @@ def write_adf_bookings_pipeline_tfvars(pipeline_dir, data_factory_dir, linked_se
     write_tfvars(pipeline_dir / "terraform.tfvars", items)
 
 
+def write_adf_master_pipeline_tfvars(
+    pipeline_dir,
+    data_factory_dir,
+    http_pipeline_dir,
+    airport_pipeline_dir,
+    bookings_pipeline_dir,
+    silver_pipeline_dir,
+):
+    data_factory_id = get_output_optional(data_factory_dir, "data_factory_id")
+    http_pipeline_name = get_output_optional(http_pipeline_dir, "pipeline_name")
+    airport_pipeline_name = get_output_optional(airport_pipeline_dir, "pipeline_name")
+    bookings_pipeline_name = get_output_optional(bookings_pipeline_dir, "pipeline_name")
+    silver_pipeline_name = get_output_optional(silver_pipeline_dir, "pipeline_name")
+    if not data_factory_id:
+        raise RuntimeError("Data Factory ID not found for master pipeline destroy.")
+    if not http_pipeline_name or not airport_pipeline_name or not bookings_pipeline_name or not silver_pipeline_name:
+        raise RuntimeError("Pipeline outputs not found for master pipeline destroy.")
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("http_pipeline_name", http_pipeline_name),
+        ("airport_pipeline_name", airport_pipeline_name),
+        ("bookings_pipeline_name", bookings_pipeline_name),
+        ("silver_pipeline_name", silver_pipeline_name),
+        ("pipeline_name_prefix", DEFAULTS["master_pipeline_name_prefix"]),
+        ("airport_url", DEFAULTS["airport_url"]),
+        ("airport_rel_url", DEFAULTS["airport_rel_url"]),
+    ]
+    write_tfvars(pipeline_dir / "terraform.tfvars", items)
+
+
+def write_adf_dataflow_tfvars(
+    dataflow_dir,
+    data_factory_dir,
+    linked_services_dir,
+):
+    data_factory_id = get_output_optional(data_factory_dir, "data_factory_id")
+    adls_linked_service_name = get_output_optional(linked_services_dir, "adls_linked_service_name")
+    if not data_factory_id:
+        raise RuntimeError("Data Factory ID not found for data flow destroy.")
+    if not adls_linked_service_name:
+        raise RuntimeError("ADLS linked service output not found for data flow destroy.")
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("adls_linked_service_name", adls_linked_service_name),
+        ("dataflow_name_prefix", DEFAULTS["dataflow_name_prefix"]),
+        ("source_container", DEFAULTS["dataflow_source_container"]),
+        ("source_folder", DEFAULTS["dataflow_source_folder"]),
+        ("airline_source_file", DEFAULTS["dataflow_airline_source_file"]),
+        ("flight_source_file", DEFAULTS["dataflow_flight_source_file"]),
+        ("passenger_source_file", DEFAULTS["dataflow_passenger_source_file"]),
+        ("airport_source_file", DEFAULTS["dataflow_airport_source_file"]),
+        ("bookings_source_file", DEFAULTS["dataflow_bookings_source_file"]),
+        ("sink_container", DEFAULTS["dataflow_sink_container"]),
+        ("sink_folder", DEFAULTS["dataflow_sink_folder"]),
+        ("airline_sink_file", DEFAULTS["dataflow_airline_sink_file"]),
+        ("flight_sink_file", DEFAULTS["dataflow_flight_sink_file"]),
+        ("passenger_sink_file", DEFAULTS["dataflow_passenger_sink_file"]),
+        ("airport_sink_file", DEFAULTS["dataflow_airport_sink_file"]),
+        ("bookings_sink_file", DEFAULTS["dataflow_bookings_sink_file"]),
+    ]
+    write_tfvars(dataflow_dir / "terraform.tfvars", items)
+
+
+def write_adf_gold_dataflow_tfvars(
+    dataflow_dir,
+    data_factory_dir,
+    linked_services_dir,
+):
+    data_factory_id = get_output_optional(data_factory_dir, "data_factory_id")
+    adls_linked_service_name = get_output_optional(linked_services_dir, "adls_linked_service_name")
+    if not data_factory_id:
+        raise RuntimeError("Data Factory ID not found for gold data flow destroy.")
+    if not adls_linked_service_name:
+        raise RuntimeError("ADLS linked service output not found for gold data flow destroy.")
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("adls_linked_service_name", adls_linked_service_name),
+        ("dataflow_name_prefix", DEFAULTS["gold_dataflow_name_prefix"]),
+        ("source_container", DEFAULTS["gold_source_container"]),
+        ("source_folder", DEFAULTS["gold_source_folder"]),
+        ("airline_source_file", DEFAULTS["gold_airline_source_file"]),
+        ("bookings_source_file", DEFAULTS["gold_bookings_source_file"]),
+        ("sink_container", DEFAULTS["gold_sink_container"]),
+        ("sink_folder", DEFAULTS["gold_sink_folder"]),
+        ("sink_name", DEFAULTS["gold_sink_name"]),
+    ]
+    write_tfvars(dataflow_dir / "terraform.tfvars", items)
+
+
+def write_adf_silver_pipeline_tfvars(
+    pipeline_dir,
+    data_factory_dir,
+    dataflow_dir,
+):
+    data_factory_id = get_output_optional(data_factory_dir, "data_factory_id")
+    dataflow_name = get_output_optional(dataflow_dir, "dataflow_name")
+    if not data_factory_id:
+        raise RuntimeError("Data Factory ID not found for silver pipeline destroy.")
+    if not dataflow_name:
+        raise RuntimeError("Data flow output not found for silver pipeline destroy.")
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("dataflow_name", dataflow_name),
+        ("pipeline_name_prefix", DEFAULTS["silver_pipeline_name_prefix"]),
+    ]
+    write_tfvars(pipeline_dir / "terraform.tfvars", items)
+
+
 def destroy_stack(tf_dir):
     if not tf_dir.exists():
         raise FileNotFoundError(f"Missing Terraform dir: {tf_dir}")
@@ -451,6 +584,26 @@ if __name__ == "__main__":
             action="store_true",
             help="Destroy only the ADF bookings SQL pipeline stack",
         )
+        group.add_argument(
+            "--adf-master-pipeline-only",
+            action="store_true",
+            help="Destroy only the ADF master pipeline stack",
+        )
+        group.add_argument(
+            "--adf-dataflow-only",
+            action="store_true",
+            help="Destroy only the ADF bronze-to-silver data flow stack",
+        )
+        group.add_argument(
+            "--adf-silver-pipeline-only",
+            action="store_true",
+            help="Destroy only the ADF silver data flow pipeline stack",
+        )
+        group.add_argument(
+            "--adf-gold-dataflow-only",
+            action="store_true",
+            help="Destroy only the ADF gold data flow stack",
+        )
         args = parser.parse_args()
 
         repo_root = Path(__file__).resolve().parent.parent
@@ -464,6 +617,10 @@ if __name__ == "__main__":
         pipeline_dir = repo_root / "terraform" / "05_adf_pipeline_http"
         pipeline_airport_dir = repo_root / "terraform" / "06_adf_pipeline_airport_json"
         pipeline_bookings_dir = repo_root / "terraform" / "08_adf_pipeline_fact_bookings_incremental"
+        pipeline_master_dir = repo_root / "terraform" / "09_adf_pipeline_master"
+        dataflow_dir = repo_root / "terraform" / "10_adf_dataflow_bronze_silver"
+        pipeline_silver_dir = repo_root / "terraform" / "11_adf_pipeline_silver_dataflow"
+        gold_dataflow_dir = repo_root / "terraform" / "12_adf_dataflow_gold_sales"
 
         if args.storage_only:
             rg_name = resolve_rg_name(rg_dir, storage_dir, data_factory_dir, sql_dir)
@@ -510,6 +667,56 @@ if __name__ == "__main__":
             destroy_stack(pipeline_bookings_dir)
             sys.exit(0)
 
+        if args.adf_master_pipeline_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_airport_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_bookings_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_silver_dir}", "init"])
+            write_adf_master_pipeline_tfvars(
+                pipeline_master_dir,
+                data_factory_dir,
+                pipeline_dir,
+                pipeline_airport_dir,
+                pipeline_bookings_dir,
+                pipeline_silver_dir,
+            )
+            destroy_stack(pipeline_master_dir)
+            sys.exit(0)
+
+        if args.adf_dataflow_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={linked_services_dir}", "init"])
+            write_adf_dataflow_tfvars(
+                dataflow_dir,
+                data_factory_dir,
+                linked_services_dir,
+            )
+            destroy_stack(dataflow_dir)
+            sys.exit(0)
+
+        if args.adf_silver_pipeline_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={dataflow_dir}", "init"])
+            write_adf_silver_pipeline_tfvars(
+                pipeline_silver_dir,
+                data_factory_dir,
+                dataflow_dir,
+            )
+            destroy_stack(pipeline_silver_dir)
+            sys.exit(0)
+
+        if args.adf_gold_dataflow_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={linked_services_dir}", "init"])
+            write_adf_gold_dataflow_tfvars(
+                gold_dataflow_dir,
+                data_factory_dir,
+                linked_services_dir,
+            )
+            destroy_stack(gold_dataflow_dir)
+            sys.exit(0)
+
         if args.adf_links_only:
             run(["terraform", f"-chdir={data_factory_dir}", "init"])
             run(["terraform", f"-chdir={storage_dir}", "init"])
@@ -533,13 +740,36 @@ if __name__ == "__main__":
         write_adf_pipeline_tfvars(pipeline_dir, data_factory_dir, linked_services_dir)
         write_adf_airport_pipeline_tfvars(pipeline_airport_dir, data_factory_dir, linked_services_dir)
         write_adf_bookings_pipeline_tfvars(pipeline_bookings_dir, data_factory_dir, linked_services_dir)
+        write_adf_master_pipeline_tfvars(
+            pipeline_master_dir,
+            data_factory_dir,
+            pipeline_dir,
+            pipeline_airport_dir,
+            pipeline_bookings_dir,
+            pipeline_silver_dir,
+        )
+        write_adf_dataflow_tfvars(dataflow_dir, data_factory_dir, linked_services_dir)
+        write_adf_silver_pipeline_tfvars(
+            pipeline_silver_dir,
+            data_factory_dir,
+            dataflow_dir,
+        )
+        write_adf_gold_dataflow_tfvars(
+            gold_dataflow_dir,
+            data_factory_dir,
+            linked_services_dir,
+        )
         write_adf_linked_services_tfvars(linked_services_dir, data_factory_dir, storage_dir, sql_dir)
         write_data_factory_tfvars(data_factory_dir, rg_name)
         write_storage_tfvars(storage_dir, rg_name)
         write_sql_tfvars(sql_dir, rg_name)
-        destroy_stack(pipeline_dir)
-        destroy_stack(pipeline_airport_dir)
+        destroy_stack(pipeline_master_dir)
+        destroy_stack(pipeline_silver_dir)
+        destroy_stack(gold_dataflow_dir)
+        destroy_stack(dataflow_dir)
         destroy_stack(pipeline_bookings_dir)
+        destroy_stack(pipeline_airport_dir)
+        destroy_stack(pipeline_dir)
         destroy_stack(linked_services_dir)
         destroy_stack(data_factory_dir)
         destroy_stack(sql_dir)
