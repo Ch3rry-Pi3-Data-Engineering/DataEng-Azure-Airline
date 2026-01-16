@@ -35,6 +35,11 @@ variable "silver_pipeline_name" {
   description = "Name of the silver data flow pipeline to execute"
 }
 
+variable "gold_pipeline_name" {
+  type        = string
+  description = "Name of the gold data flow pipeline to execute"
+}
+
 variable "airport_url" {
   type        = string
   description = "Airport JSON URL"

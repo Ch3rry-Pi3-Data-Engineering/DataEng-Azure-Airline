@@ -220,6 +220,23 @@ locals {
         }
         waitOnCompletion = true
       }
+    },
+    {
+      name = "ExecuteGoldDataflowPipeline"
+      type = "ExecutePipeline"
+      dependsOn = [
+        {
+          activity             = "ExecuteSilverDataflowPipeline"
+          dependencyConditions = ["Succeeded"]
+        }
+      ]
+      typeProperties = {
+        pipeline = {
+          referenceName = var.gold_pipeline_name
+          type          = "PipelineReference"
+        }
+        waitOnCompletion = true
+      }
     }
   ]
 

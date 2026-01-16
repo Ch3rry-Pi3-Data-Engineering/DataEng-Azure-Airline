@@ -56,6 +56,7 @@ After installing, re-open PowerShell and re-run terraform version.
 - `terraform/10_adf_dataflow_bronze_silver`: ADF mapping data flow (bronze -> silver transformations)
 - `terraform/11_adf_pipeline_silver_dataflow`: ADF pipeline to execute the bronze-to-silver data flow
 - `terraform/12_adf_dataflow_gold_sales`: ADF mapping data flow (silver -> gold airline sales)
+- `terraform/13_adf_pipeline_gold_dataflow`: ADF pipeline to execute the gold data flow
 - `scripts/`: Helper scripts to deploy/destroy Terraform resources
 - `guides/setup.md`: This guide
 - `data/`: Local data assets
@@ -80,8 +81,9 @@ flowchart LR
 ### FactBookings Incremental Pipeline
 ```mermaid
 flowchart LR
-    lastload[Lookup last_load.json] --> copy[Copy SQL -> Parquet]
-    latest[Lookup MAX(booking_date)] --> copy
+    lastload[Lookup last_load.json] --> gate{Latest > Last?}
+    latest[Lookup MAX(booking_date)] --> gate
+    gate --> copy[Copy SQL -> Parquet]
     copy --> sink[ADLS bronze/airport/fact_bookings.parquet]
     copy --> update[Update last_load.json]
     empty[empty.json] --> update
@@ -95,6 +97,7 @@ flowchart LR
     http --> airport[Airport JSON pipeline]
     airport --> bookings[Bookings pipeline]
     bookings --> silver[Silver data flow pipeline]
+    silver --> gold[Gold data flow pipeline]
 ```
 
 ### Bronze -> Silver Data Flow
@@ -113,6 +116,13 @@ flowchart LR
 flowchart LR
     pipeline[Silver pipeline] --> df[Bronze -> Silver data flow]
     df --> silver[Silver delta outputs]
+```
+
+### Gold Data Flow Pipeline
+```mermaid
+flowchart LR
+    pipeline[Gold pipeline] --> df[Silver -> Gold data flow]
+    df --> gold[Gold delta output]
 ```
 
 ### Gold Data Flow
@@ -143,6 +153,7 @@ Example variables files:
 - `terraform/10_adf_dataflow_bronze_silver/terraform.tfvars.example`
 - `terraform/11_adf_pipeline_silver_dataflow/terraform.tfvars.example`
 - `terraform/12_adf_dataflow_gold_sales/terraform.tfvars.example`
+- `terraform/13_adf_pipeline_gold_dataflow/terraform.tfvars.example`
 
 ## Resource Naming
 Resource names are built from a prefix plus a random pet suffix.
@@ -171,6 +182,7 @@ python scripts\deploy.py --adf-bookings-pipeline-only
 python scripts\deploy.py --adf-master-pipeline-only
 python scripts\deploy.py --adf-dataflow-only
 python scripts\deploy.py --adf-silver-pipeline-only
+python scripts\deploy.py --adf-gold-pipeline-only
 python scripts\deploy.py --adf-gold-dataflow-only
 python scripts\deploy.py --sql-only --sql-init
 python scripts\deploy.py --skip-sql-init
@@ -197,6 +209,7 @@ python scripts\destroy.py --adf-bookings-pipeline-only
 python scripts\destroy.py --adf-master-pipeline-only
 python scripts\destroy.py --adf-dataflow-only
 python scripts\destroy.py --adf-silver-pipeline-only
+python scripts\destroy.py --adf-gold-pipeline-only
 python scripts\destroy.py --adf-gold-dataflow-only
 ```
 
@@ -211,8 +224,8 @@ python scripts\destroy.py --adf-gold-dataflow-only
 - ADF Studio may show an empty Mapping grid; verify mappings in the Copy activity JSON instead.
 - The pipeline copies each HTTP CSV into `bronze/airport/<file>` using the per-file translator.
 - The airport JSON pipeline runs a Web activity (GET) and copies the JSON into `bronze/airport/airport.json`.
-- The bookings pipeline reads `bronze/monitor/lastload/last_load.json`, loads new SQL rows into `bronze/airport`, and updates the marker.
-- The master pipeline executes the HTTP CSV, airport JSON, bookings, and silver data flow pipelines in sequence.
+- The bookings pipeline reads `bronze/monitor/lastload/last_load.json`, loads new SQL rows into `bronze/airport`, and updates the marker only when new rows exist.
+- The master pipeline executes the HTTP CSV, airport JSON, bookings, silver data flow, and gold data flow pipelines in sequence.
 - The bronze-to-silver data flow standardizes and enriches all five datasets before landing them in `silver/airport` as delta outputs.
 - The gold data flow rolls up airline sales and writes the top 5 airlines into `gold/airport`.
 - The SQL module provisions an Azure SQL Server + database. Initialize it with `sql_scripts/fact_bookings_full.sql`.

@@ -81,12 +81,13 @@ locals {
     table  = var.sql_table
   }
 
-  latest_load_query = "SELECT MAX(booking_date) as latestload FROM ${local.sql_table_full}"
+  latest_load_query = "SELECT MAX(CAST(booking_date AS datetime2)) as latestload FROM ${local.sql_table_full}"
   incremental_query = <<EOT
 SELECT * FROM ${local.sql_table_full}
 WHERE booking_date > '@{activity('LastLoad').output.firstRow.${local.lastload_field_name}}'
 AND booking_date <= '@{activity('LatestLoad').output.firstRow.latestload}'
 EOT
+  should_copy_expression = "@greater(ticks(activity('LatestLoad').output.firstRow.latestload), ticks(activity('LastLoad').output.firstRow.${local.lastload_field_name}))"
 
   pipeline_activities = [
     {
@@ -121,8 +122,8 @@ EOT
       }
     },
     {
-      name = "CopyFactBookings"
-      type = "Copy"
+      name = "IfNewBookings"
+      type = "IfCondition"
       dependsOn = [
         {
           activity             = "LastLoad"
@@ -133,66 +134,79 @@ EOT
           dependencyConditions = ["Succeeded"]
         }
       ]
-      inputs = [
-        {
-          referenceName = azurerm_data_factory_dataset_azure_sql_table.sql.name
-          type          = "DatasetReference"
-          parameters    = local.sql_dataset_params
-        }
-      ]
-      outputs = [
-        {
-          referenceName = azurerm_data_factory_dataset_parquet.adls_sink.name
-          type          = "DatasetReference"
-          parameters    = local.sink_dataset_params
-        }
-      ]
       typeProperties = {
-        source = {
-          type           = "SqlSource"
-          sqlReaderQuery = local.incremental_query
+        expression = {
+          type  = "Expression"
+          value = local.should_copy_expression
         }
-        sink = {
-          type = "ParquetSink"
-        }
-      }
-    },
-    {
-      name = "UpdateLastLoad"
-      type = "Copy"
-      dependsOn = [
-        {
-          activity             = "CopyFactBookings"
-          dependencyConditions = ["Succeeded"]
-        }
-      ]
-      inputs = [
-        {
-          referenceName = azurerm_data_factory_dataset_json.monitor.name
-          type          = "DatasetReference"
-          parameters    = local.empty_dataset_params
-        }
-      ]
-      outputs = [
-        {
-          referenceName = azurerm_data_factory_dataset_json.monitor.name
-          type          = "DatasetReference"
-          parameters    = local.lastload_dataset_params
-        }
-      ]
-      typeProperties = {
-        source = {
-          type = "JsonSource"
-          additionalColumns = [
-            {
-              name  = local.lastload_field_name
-              value = "@activity('LatestLoad').output.firstRow.latestload"
+        ifTrueActivities = [
+          {
+            name = "CopyFactBookings"
+            type = "Copy"
+            inputs = [
+              {
+                referenceName = azurerm_data_factory_dataset_azure_sql_table.sql.name
+                type          = "DatasetReference"
+                parameters    = local.sql_dataset_params
+              }
+            ]
+            outputs = [
+              {
+                referenceName = azurerm_data_factory_dataset_parquet.adls_sink.name
+                type          = "DatasetReference"
+                parameters    = local.sink_dataset_params
+              }
+            ]
+            typeProperties = {
+              source = {
+                type           = "SqlSource"
+                sqlReaderQuery = local.incremental_query
+              }
+              sink = {
+                type = "ParquetSink"
+              }
             }
-          ]
-        }
-        sink = {
-          type = "JsonSink"
-        }
+          },
+          {
+            name = "UpdateLastLoad"
+            type = "Copy"
+            dependsOn = [
+              {
+                activity             = "CopyFactBookings"
+                dependencyConditions = ["Succeeded"]
+              }
+            ]
+            inputs = [
+              {
+                referenceName = azurerm_data_factory_dataset_json.monitor.name
+                type          = "DatasetReference"
+                parameters    = local.empty_dataset_params
+              }
+            ]
+            outputs = [
+              {
+                referenceName = azurerm_data_factory_dataset_json.monitor.name
+                type          = "DatasetReference"
+                parameters    = local.lastload_dataset_params
+              }
+            ]
+            typeProperties = {
+              source = {
+                type = "JsonSource"
+                additionalColumns = [
+                  {
+                    name  = local.lastload_field_name
+                    value = "@activity('LatestLoad').output.firstRow.latestload"
+                  }
+                ]
+              }
+              sink = {
+                type = "JsonSink"
+              }
+            }
+          }
+        ]
+        ifFalseActivities = []
       }
     }
   ]

@@ -3,6 +3,7 @@ http_pipeline_name = "pl-airline-http-example"
 airport_pipeline_name = "pl-airline-airport-json-example"
 bookings_pipeline_name = "pl-airline-bookings-example"
 silver_pipeline_name = "pl-airline-silver-dataflow-example"
+gold_pipeline_name = "pl-airline-gold-dataflow-example"
 
 pipeline_name_prefix = "pl-airline-master"
 airport_url = "https://raw.githubusercontent.com/Ch3rry-Pi3-Data-Engineering/DataEng-Azure-Airline/refs/heads/main/data/DimAirport.json"

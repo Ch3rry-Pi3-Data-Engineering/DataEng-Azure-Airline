@@ -53,6 +53,7 @@ DEFAULTS = {
     "bookings_sql_table": "FactBookings",
     "master_pipeline_name_prefix": "pl-airline-master",
     "silver_pipeline_name_prefix": "pl-airline-silver-dataflow",
+    "gold_pipeline_name_prefix": "pl-airline-gold-dataflow",
     "dataflow_name_prefix": "df-airline-bronze-silver",
     "dataflow_source_container": "bronze",
     "dataflow_source_folder": "airport",
@@ -524,6 +525,7 @@ def write_adf_master_pipeline_tfvars(
     airport_pipeline_name,
     bookings_pipeline_name,
     silver_pipeline_name,
+    gold_pipeline_name,
 ):
     items = [
         ("data_factory_id", data_factory_id),
@@ -531,6 +533,7 @@ def write_adf_master_pipeline_tfvars(
         ("airport_pipeline_name", airport_pipeline_name),
         ("bookings_pipeline_name", bookings_pipeline_name),
         ("silver_pipeline_name", silver_pipeline_name),
+        ("gold_pipeline_name", gold_pipeline_name),
         ("pipeline_name_prefix", DEFAULTS["master_pipeline_name_prefix"]),
         ("airport_url", DEFAULTS["airport_url"]),
         ("airport_rel_url", DEFAULTS["airport_rel_url"]),
@@ -598,6 +601,19 @@ def write_adf_silver_pipeline_tfvars(
     write_tfvars(pipeline_dir / "terraform.tfvars", items)
 
 
+def write_adf_gold_pipeline_tfvars(
+    pipeline_dir,
+    data_factory_id,
+    dataflow_name,
+):
+    items = [
+        ("data_factory_id", data_factory_id),
+        ("dataflow_name", dataflow_name),
+        ("pipeline_name_prefix", DEFAULTS["gold_pipeline_name_prefix"]),
+    ]
+    write_tfvars(pipeline_dir / "terraform.tfvars", items)
+
+
 def deploy_stack(tf_dir):
     if not tf_dir.exists():
         raise FileNotFoundError(f"Missing Terraform dir: {tf_dir}")
@@ -657,6 +673,11 @@ if __name__ == "__main__":
             help="Deploy only the ADF silver data flow pipeline stack",
         )
         group.add_argument(
+            "--adf-gold-pipeline-only",
+            action="store_true",
+            help="Deploy only the ADF gold data flow pipeline stack",
+        )
+        group.add_argument(
             "--adf-gold-dataflow-only",
             action="store_true",
             help="Deploy only the ADF gold data flow stack",
@@ -677,6 +698,7 @@ if __name__ == "__main__":
             or args.adf_master_pipeline_only
             or args.adf_dataflow_only
             or args.adf_silver_pipeline_only
+            or args.adf_gold_pipeline_only
             or args.adf_gold_dataflow_only
         )
         run_sql_init = args.sql_init or (full_deploy and not args.skip_sql_init)
@@ -695,6 +717,7 @@ if __name__ == "__main__":
         dataflow_dir = repo_root / "terraform" / "10_adf_dataflow_bronze_silver"
         pipeline_silver_dir = repo_root / "terraform" / "11_adf_pipeline_silver_dataflow"
         gold_dataflow_dir = repo_root / "terraform" / "12_adf_dataflow_gold_sales"
+        pipeline_gold_dir = repo_root / "terraform" / "13_adf_pipeline_gold_dataflow"
 
         if args.rg_only:
             write_rg_tfvars(rg_dir)
@@ -800,11 +823,13 @@ if __name__ == "__main__":
             run(["terraform", f"-chdir={pipeline_airport_dir}", "init"])
             run(["terraform", f"-chdir={pipeline_bookings_dir}", "init"])
             run(["terraform", f"-chdir={pipeline_silver_dir}", "init"])
+            run(["terraform", f"-chdir={pipeline_gold_dir}", "init"])
             data_factory_id = get_output(data_factory_dir, "data_factory_id")
             http_pipeline_name = get_output(pipeline_dir, "pipeline_name")
             airport_pipeline_name = get_output(pipeline_airport_dir, "pipeline_name")
             bookings_pipeline_name = get_output(pipeline_bookings_dir, "pipeline_name")
             silver_pipeline_name = get_output(pipeline_silver_dir, "pipeline_name")
+            gold_pipeline_name = get_output(pipeline_gold_dir, "pipeline_name")
             write_adf_master_pipeline_tfvars(
                 pipeline_master_dir,
                 data_factory_id,
@@ -812,6 +837,7 @@ if __name__ == "__main__":
                 airport_pipeline_name,
                 bookings_pipeline_name,
                 silver_pipeline_name,
+                gold_pipeline_name,
             )
             deploy_pipeline_stack(pipeline_master_dir)
             sys.exit(0)
@@ -840,6 +866,19 @@ if __name__ == "__main__":
                 dataflow_name,
             )
             deploy_pipeline_stack(pipeline_silver_dir)
+            sys.exit(0)
+
+        if args.adf_gold_pipeline_only:
+            run(["terraform", f"-chdir={data_factory_dir}", "init"])
+            run(["terraform", f"-chdir={gold_dataflow_dir}", "init"])
+            data_factory_id = get_output(data_factory_dir, "data_factory_id")
+            dataflow_name = get_output(gold_dataflow_dir, "dataflow_name")
+            write_adf_gold_pipeline_tfvars(
+                pipeline_gold_dir,
+                data_factory_id,
+                dataflow_name,
+            )
+            deploy_pipeline_stack(pipeline_gold_dir)
             sys.exit(0)
 
         if args.adf_gold_dataflow_only:
@@ -926,10 +965,18 @@ if __name__ == "__main__":
             adls_linked_service_name,
         )
         deploy_dataflow_stack(gold_dataflow_dir)
+        gold_dataflow_name = get_output(gold_dataflow_dir, "dataflow_name")
+        write_adf_gold_pipeline_tfvars(
+            pipeline_gold_dir,
+            data_factory_id,
+            gold_dataflow_name,
+        )
+        deploy_pipeline_stack(pipeline_gold_dir)
         http_pipeline_name = get_output(pipeline_dir, "pipeline_name")
         airport_pipeline_name = get_output(pipeline_airport_dir, "pipeline_name")
         bookings_pipeline_name = get_output(pipeline_bookings_dir, "pipeline_name")
         silver_pipeline_name = get_output(pipeline_silver_dir, "pipeline_name")
+        gold_pipeline_name = get_output(pipeline_gold_dir, "pipeline_name")
         write_adf_master_pipeline_tfvars(
             pipeline_master_dir,
             data_factory_id,
@@ -937,6 +984,7 @@ if __name__ == "__main__":
             airport_pipeline_name,
             bookings_pipeline_name,
             silver_pipeline_name,
+            gold_pipeline_name,
         )
         deploy_pipeline_stack(pipeline_master_dir)
     except subprocess.CalledProcessError as exc:
