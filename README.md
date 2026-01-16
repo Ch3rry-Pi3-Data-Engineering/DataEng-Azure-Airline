@@ -1,6 +1,23 @@
 ﻿# Azure Airline Data Engineering (IaC)
 
-Terraform-first infrastructure for an airline data engineering project on Azure with a bronze/silver/gold lakehouse layout.
+Terraform-first infrastructure for an airline data engineering project on Azure with a Medallion Architecture (bronze/silver/gold lakehouse layout).
+
+```mermaid
+flowchart LR
+    B["Bronze  
+    Raw ingestion"] --> S["Silver  
+    Cleaned & conformed"]
+    S --> G["Gold  
+    Business-ready"]
+
+    classDef bronze fill:#cd7f32,stroke:#8c5a1a,color:#000;
+    classDef silver fill:#c0c0c0,stroke:#7f7f7f,color:#000;
+    classDef gold fill:#d4af37,stroke:#8b6f1a,color:#000;
+
+    class B bronze;
+    class S silver;
+    class G gold;
+```
 
 ## Introduction
 This project builds a small airline data platform on Azure using Terraform. The bronze layer ingests reference CSVs and airport JSON from HTTP plus incremental fact bookings from Azure SQL, all orchestrated by Data Factory.
