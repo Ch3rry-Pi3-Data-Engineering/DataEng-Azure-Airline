@@ -64,7 +64,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     lastload[Lookup last_load.json] --> gate{Latest > Last?}
-    latest[Lookup MAX(booking_date)] --> gate
+    latest["Lookup MAX(booking_date)"] --> gate
     gate --> copy[Copy SQL -> Parquet]
     copy --> sink[ADLS bronze/airport/fact_bookings.parquet]
     copy --> update[Update last_load.json]
